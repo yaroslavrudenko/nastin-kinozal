@@ -5,14 +5,14 @@
 <h1 align="center">Настин кинозал · Nastin Kinozal</h1>
 
 <p align="center">
-  <b>Your old Samsung TV deserves a cinema that never freezes.</b><br>
-  <b>A fast, modern IPTV player for the Samsung TV you already own — even a 2017 one.</b><br>
+  <b>Every Samsung Smart TV deserves a cinema that never freezes.</b><br>
+  <b>A fast, modern IPTV player for the Samsung TV you already own — from an almost 10-year-old 2017 set to the newest model.</b><br>
   Free channels from the first minute · your own playlists · OTT Club with a 7‑day archive · four interface languages.
 </p>
 
 <p align="center">
-  <img alt="Samsung Tizen 3.0+ (2017)" src="https://img.shields.io/badge/Samsung%20Tizen-3.0%2B%20·%202017%20TVs-1428A0?style=for-the-badge">
-  <img alt="Chromium 47 engine, plain ES5" src="https://img.shields.io/badge/Chromium%2047-plain%20ES5-2f7ee8?style=for-the-badge">
+  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
+  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
   <img alt="Hardware playback" src="https://img.shields.io/badge/playback-hardware%20AVPlay-34a853?style=for-the-badge"><br>
   <img alt="Four interface languages" src="https://img.shields.io/badge/interface-RU%20·%20UK%20·%20HE%20(RTL)%20·%20EN-8e44ad?style=for-the-badge">
   <img alt="Free channels built in" src="https://img.shields.io/badge/free%20channels-~11%20000%20built%20in-f39c12?style=for-the-badge">
@@ -31,6 +31,14 @@
   <i>💐 Dedicated to my wife, Anastasia —<br>
   so that in her free time she can switch on the TV, rest, enjoy life and simply have a wonderful time.</i>
 </p>
+
+## 📺 Supported TVs
+
+Nastin Kinozal supports Samsung Smart TVs across the whole range: from models almost 10 years old (the 2017 generation,
+Tizen 3.0) up to the newest current models. It is not an app only for old TVs. We keep the code compatible with the
+oldest supported generation (Tizen 3.0, Chromium 47), so it also runs on older sets; there is one package for every
+generation. It is developed, tested and measured on the owner's 2017 Samsung UE50MU7000, and every TV number on this
+page comes from it. [Tell us your TV model](https://github.com/yaroslavrudenko/nastin-kinozal/issues).
 
 ## See it in action
 
@@ -85,7 +93,7 @@
 
 ## The pitch
 
-That 2017 Samsung on your wall still has a great panel. Its apps don't: menus throw JavaScript errors, channels freeze, and nothing is updated any more. Samsung's firmware is locked, so the TV's web engine will never be upgraded.
+Whatever Samsung is on your wall, from a 2017 set to this year's model, it deserves a player that never freezes. Older sets have it hardest: their apps throw JavaScript errors in the menus, channels freeze, nothing is updated any more, and the locked firmware means the TV's web engine will never be upgraded.
 
 **Настин кинозал is written for the engine your TV actually has.** It plays through the TV's own hardware decoder, comes with free channels ready to watch, speaks your language, and was measured on a real 2017 TV at every release.
 
@@ -100,7 +108,7 @@ That 2017 Samsung on your wall still has a great panel. Its apps don't: menus th
 | ⚡ **Fast** | Measured on a 2017 TV: a channel switch takes **about 1.0 s** from key to picture; menu keys answer in **37–49 ms**; channel logos never pop in while you scroll; scrolling is smoother than in 1.8.4 (long frames when holding ▼: **15 → 2**). [The numbers ↓](#-performance-what-improved-and-why) |
 | 🧊 **The screen never freezes** | Lists are virtualised, so a 1000‑channel playlist moves like a 10‑channel one. Playlists and programme guides are parsed in slices of at most 8 ms, and no logo download ever starts inside a key press, so the remote keeps answering. |
 | 🎬 **Calm picture, no spinner nagging** | The big buffering spinner appears only when a channel is really slow (over ~1.6 s): **0–1 times in 16 channel changes** on the TV. Quality adapts to your connection: it starts at the best the bandwidth allows and steps down rather than stalling. |
-| 📺 **Runs on old TVs** | Built for Samsung Tizen 3.0 — the 2017 TVs and their Chromium 47 web engine. The whole app is plain ES5 (checked with `acorn --ecma5`), with no framework, no build step and no modern JavaScript that an old TV cannot run. Developed and measured on a Samsung UE50MU7000 from 2017. |
+| 📺 **Every Samsung generation** | Runs on Samsung Smart TVs from models almost 10 years old to the newest ones. The code is kept compatible with the oldest supported generation, Samsung Tizen 3.0 (the 2017 TVs) and its Chromium 47 web engine, so it also runs on older sets: the whole app is plain ES5 (checked with `acorn --ecma5`), with no framework, no build step and no modern JavaScript that an older TV cannot run. Developed and measured on a Samsung UE50MU7000 from 2017. |
 | ⏪ **TV you can rewind** | Up to **7 days of archive** (with OTT Club or a playlist that has catch‑up): a timeline slider to scrub to any minute, ▲ ▼ to jump between programmes, and a programme guide where past shows play from the archive. |
 | 🔄 **Always current** | Channel lists and groups are fetched again every hour and always applied. With the menu open, the "now on air" lines are re‑read every minute; in every TV check they matched the guide (**13 of 13 rows, 0 stale**). |
 | 🆓 **Free channels from the first minute** | The free provider **iptv-org** is built in with **11 ready playlists** — about 11 000 public channels from around the world. No key, no sign‑up. Their quality and availability are the sources' own ([about the free channels](#-start-watching--free-in-a-minute)); for guaranteed quality and support, use the paid OTT Club. |
@@ -113,7 +121,7 @@ That 2017 Samsung on your wall still has a great panel. Its apps don't: menus th
 
 | Design choice | What it means for you | Where it lives |
 |---|---|---|
-| **The TV's hardware player first** | Smooth full‑HD video on a TV whose web engine is from 2015 | [`js/player.js`](js/player.js), [`js/avtracks.js`](js/avtracks.js) |
+| **The TV's hardware player first** | Smooth full‑HD video on every TV, even one whose web engine is from 2015 | [`js/player.js`](js/player.js), [`js/avtracks.js`](js/avtracks.js) |
 | **Written for the engine the TV really has** | No JavaScript errors, no blank menus: everything ships inside the app, nothing is downloaded and run from a server | [`index.html`](index.html), plain ES5 in [`js/`](js/) |
 | **A watchdog on every stream** | Stalls, errors and network drops are healed by themselves | [`js/player.js`](js/player.js), [`js/config.js`](js/config.js) |
 | **Nothing blocks a key** | Reading a playlist or a programme guide of up to 30 MB never holds the screen for more than 8 ms at a time; a cursor move rewrites two rows, not the whole list | [`js/m3u.js`](js/m3u.js), [`js/xmltv.js`](js/xmltv.js), [`js/listview.js`](js/listview.js), [`js/listrows.js`](js/listrows.js) |
@@ -419,7 +427,7 @@ printf 'CERT_PROFILE=kinozal\nDEVICE_PROFILE=%s\nTV=<tv-ip>:26101\n' ~/tizen-stu
 
 - **The official OTT Club app on these TVs is stuck at version 1.0.6.** It is a 56 KB shell that downloads its menu from the provider's server. The Android app moves on (2.6x in 2026), but the code it sends to the TV now uses JavaScript that the TV's 2015‑era web engine cannot run: errors in the menus, frozen screens, channels that hang.
 - **Samsung no longer updates these TVs.** The firmware is signed and locked; the only fix inside the TV is an app written for the engine it actually has.
-- **The goal:** a player that is fast, reliable and complete on old hardware, with every feature a viewer cares about, and that never hangs.
+- **The goal:** a player that is fast, reliable and complete on every Samsung TV, old hardware included, with every feature a viewer cares about, and that never hangs.
 
 «Настин кинозал» means "Nastya's cinema": a cinema at home, one that simply works.
 
@@ -429,7 +437,7 @@ printf 'CERT_PROFILE=kinozal\nDEVICE_PROFILE=%s\nTV=<tv-ip>:26101\n' ~/tizen-stu
 - **Never block the screen.** Lists are virtualised, so a 1000‑channel playlist moves like a 10‑channel one; the guide loads one channel at a time.
 - **Assume the network fails.** Every stall, error or network drop reconnects with backoff.
 - **Never show a stale list.** Channels come from the provider at every start and every hour.
-- **Write for the oldest engine.** Plain ES5, checked with `acorn --ecma5`, no build step.
+- **Stay compatible with the oldest supported engine.** Plain ES5, checked with `acorn --ecma5`, no build step, so the same app runs on older and newer sets alike.
 
 ## 🗺 Roadmap
 
@@ -472,5 +480,5 @@ On the desktop preview the player loads [hls.js](https://github.com/video-dev/hl
 
 <p align="center">
   <b>Made with love for Настя: a cinema at home, one that simply works.</b><br>
-  If it brought your old TV back to life, <a href="https://github.com/yaroslavrudenko/nastin-kinozal">give it a ⭐</a>.
+  If it made your TV, old or new, a better cinema, <a href="https://github.com/yaroslavrudenko/nastin-kinozal">give it a ⭐</a>.
 </p>
