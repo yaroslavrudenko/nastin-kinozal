@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <img alt="Plays on behind Home Dashboard" src="https://img.shields.io/badge/plays%20on%20behind-Home%20Dashboard-e84393?style=for-the-badge">
+  <img alt="Companion apps: Настин кинозал + Home Dashboard" src="https://img.shields.io/badge/companion%20apps-player%20%2B%20dashboard-6c5ce7?style=for-the-badge"><br>
   <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
   <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
   <img alt="Hardware playback" src="https://img.shields.io/badge/playback-hardware%20AVPlay-34a853?style=for-the-badge"><br>
