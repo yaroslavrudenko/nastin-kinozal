@@ -1,6 +1,7 @@
 // Boot, wiring of the modules' hooks, and the remote-control keys while watching.
 (function () {
   var lastBack = 0, visibleAt = 0, guideNoticeShown = false, failures = 0;
+  var away = false;                    // D9: hidden since the last 'visible' (Tizen also reports 'visible' at launch)
 
   // Optional platform setup: a throw is recorded and boot carries on (a TV refusing one of these calls
   // must never leave the screen black).
@@ -19,7 +20,7 @@
       onLoading: function (pct) { if (!Zap.choosing()) Banner.loading(pct); },
       // The picture is up: the banner with this stream's technical line, at once.
       onFirstFrame: function () {
-        UI.spinner(false); Playback.onFirstFrame();
+        UI.spinner(false); Playback.onFirstFrame(); NowLines.frame();
         Zap.onFirstFrame(); Util.idle(prepareMenu);   // menu laid out ahead, hidden
         if (!Zap.choosing()) Banner.onFirstFrame();
       },
@@ -42,7 +43,8 @@
     });
     Playback.setHooks({ onOpened: function () { Banner.show(false); Diag.mark('banner'); }, onBanner: function () { Banner.show(true); },
       onUnplayable: function () { UI.spinner(false); UI.toast(I18n.t('m.unplayable'), 5000); } });
-    NowLines.setHooks({ onUpdate: Overlay.refreshQuiet });
+    // A fresh "now" answer redraws what shows it: the open overlay, and the banner while it is up (D9).
+    NowLines.setHooks({ onUpdate: function () { Banner.onGuide(null); Overlay.refreshQuiet(); } });
     Sources.setHooks({ onApplied: onListApplied, onFatal: UI.fatal, onSpinner: UI.spinner, onGuide: Overlay.refresh,
       onNotice: function (text) { UI.toast(text, 5000); } });
     EPG.setHooks({
@@ -117,11 +119,15 @@
     if (pickIdx !== undefined) Zap.pick(Channels.at(pickIdx));
   }
 
-  // D8: coming to the front clears the exit confirmation and opens the Back guard (BACK_GUARD_MS).
+  // D8: coming to the front clears the exit confirmation and opens the Back guard (BACK_GUARD_MS). D9: an actual return from
+  // the background is told to the "now" lines after the player rebuilt its stream; launch's 'visible' or a repeated one is not.
   function onVisibility() {
+    var back = away && !document.hidden;
+    away = document.hidden;
     LifeLog.pinNow('visibility', 'visibility ' + (document.hidden ? 'hidden' : 'visible'));
-    if (document.hidden) { Zap.cancel(); NowLines.cancel(); } else { visibleAt = Date.now(); lastBack = 0; NowLines.update(); }
+    if (document.hidden) { Zap.cancel(); NowLines.cancel(); } else { visibleAt = Date.now(); lastBack = 0; }
     Playback.onVisibility(document.hidden);
+    if (back) NowLines.front(Overlay.mode() === 'panel'); else if (!document.hidden) NowLines.update();
   }
   function lifeStatus() { return (document.hidden ? 'hidden ' : 'front ') + Playback.mode() + (Playback.behind() ? ' behind' : ''); }
   // D7 (fix batch 2, R2): every journal line is written at once while hidden, for LIFE_SYNC_MS after coming to the front

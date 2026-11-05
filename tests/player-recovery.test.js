@@ -734,11 +734,12 @@ test('R4: a pause AVPlay refuses is journaled as an error, and the app carries o
   noErrors(app);
 });
 
+// Expected lines changed by batch 5 N3: the setting calls are one av.setup pair, a refused one marked '<name>!'.
 test('R4: the setup calls are journaled; one AVPlay refuses is journaled as an error and the stream still plays', () => {
   const app = watching({ platformThrows: ['webapis.avplay.setDisplayRect'] });
   const lines = lifeLines(app);
-  for (const re of [/ av\.displayRect error SecurityError$/, / av\.displayMode ok$/, / av\.adaptive ok$/, / av\.bufferPlay ok$/,
-    / av\.bufferResume ok$/, / av\.setListener ok$/]) assert.ok(lines.some((l) => re.test(l)), 'missing ' + re);
+  for (const re of [/ av\.displayRect error SecurityError$/, / av\.setup ok displayRect!,displayMode,adaptive,bufferPlay,bufferResume$/,
+    / av\.setListener ok$/]) assert.ok(lines.some((l) => re.test(l)), 'missing ' + re);
   assert.equal(app.av.state, 'PLAYING');
   noErrors(app);
 });
@@ -882,3 +883,120 @@ for (const [name, streamUrl, path] of HLS_PATHS) {
     assert.deepEqual(lines.filter((l) => /<cred>/.test(l)), []);
   });
 }
+
+// ==== Batch 5 (2026-11-05, COMMON DECISION batch 5: N1, N2, N3, N5) ==============================================
+const lineText = (l) => l.split(' ').slice(3).join(' ');
+const pathCreds = (app, u) => JSON.parse(ev(app, 'JSON.stringify(Diag.pathCredentials(' + JSON.stringify(u) + '))'));
+
+// ---- N1: the short form is learned only when the last segment is an Xtream stream id (<digits> or ch<digits>) ----------
+const ORDINARY = [
+  ['…/tv/play/index.m3u8', (id) => 'http://' + id + '.cdn.example.test/tv/play/index.m3u8'],
+  ['…/news/first/index.m3u8', (id) => 'http://' + id + '.cdn.example.test/news/first/index.m3u8'],
+  ['…/hls/main/playlist.m3u8', (id) => 'http://' + id + '.cdn.example.test/hls/main/playlist.m3u8']
+];
+test('N1: an ordinary HLS path /<a>/<b>/<name> teaches no credential (…/tv/play/index.m3u8, …/news/first/index.m3u8, …/hls/main/playlist.m3u8)', () => {
+  const app = watching();
+  assert.deepEqual(ORDINARY.map(([, u]) => pathCreds(app, u('x'))), [[], [], []]);
+});
+for (const [name, streamUrl] of ORDINARY) {
+  test('N1: a channel at ' + name + ' keeps "first frame live" and "av.play ok" in storage, no <cred>', () => {
+    const app = f.untilPlaying(f.m3uApp({ channels: 3, m3u: { streamUrl } }));
+    app.advance(6000);
+    const lines = storedLines(app);
+    assert.ok(lines.some((l) => /first frame live/.test(l)), 'no "first frame live" in storage');
+    assert.ok(lines.some((l) => / av\.play ok/.test(l)), 'no "av.play ok" in storage');
+    assert.deepEqual(lines.filter((l) => /<cred>/.test(l)), []);
+  });
+}
+test('N1: the Xtream short form with a numeric or ch<digits> id still teaches its user and password (…/12345, …/12345.ts, …/ch12.m3u8)', () => {
+  const app = watching();
+  const h = 'http://h.example.test:8080/alice/s3cr3t/';
+  assert.deepEqual(['12345', '12345.ts', 'ch12.m3u8'].map((last) => pathCreds(app, h + last)), [['alice', 's3cr3t'], ['alice', 's3cr3t'], ['alice', 's3cr3t']]);
+});
+test('N1: a channel at /<user>/<pass>/<digits>.ts — a failure naming them bare reaches the journal and failLog as <cred>', () => {
+  const app = f.untilPlaying(f.m3uApp({ channels: 3, m3u: { streamUrl: (id) => 'http://iptv.example.test:8080/alice/s3cr3t/' + id.replace(/\D/g, '') + '.ts' } }));
+  app.av.emit('onerror', 'auth failed for alice s3cr3t');
+  app.advance(40000);
+  const lines = storedLines(app).concat(STORED_DIAG(app));
+  assert.ok(lines.some((l) => /fail #1 auth failed for <cred> <cred>/.test(l)), 'not masked: ' + lines.filter((l) => /auth failed/.test(l)).join(' | '));
+  assert.deepEqual(lines.filter((l) => /alice|s3cr3t/.test(l)), []);
+});
+
+// ---- N2: the AVPlay event data is cleaned like failLog before it is kept -----------------------------------------
+test('N2: an AVPlay event whose text carries the short form\'s user and password bare keeps <cred> in the diag note, nothing stored leaks them', () => {
+  const app = f.untilPlaying(f.m3uApp({ channels: 3, m3u: { streamUrl: SHORT_FORM } }));
+  app.av.listener.onevent('PLAYER_MSG_HTTP_ERROR_CODE', '401 for anastasia fake123');
+  app.advance(40000);
+  assert.equal(ev(app, 'Diag.snapshot().notes["avEvent.PLAYER_MSG_HTTP_ERROR_CODE"]'), '401 for <cred> <cred>');
+  assert.deepEqual(storedLines(app).concat(STORED_DIAG(app)).filter((l) => /anastasia|fake123/.test(l)), []);
+});
+test('N2: an AVPlay event whose text carries the OTT key bare keeps <key> in the diag note', () => {
+  const app = watching();
+  const key = ev(app, 'OttClub.key()');
+  app.av.listener.onevent('PLAYER_MSG_CUSTOM', 'denied ' + key);
+  app.advance(40000);
+  assert.equal(ev(app, 'Diag.snapshot().notes["avEvent.PLAYER_MSG_CUSTOM"]'), 'denied <key>');
+  assert.deepEqual(STORED_DIAG(app).filter((l) => l.indexOf(key) >= 0), []);
+});
+
+// ---- N3: the setting calls of one attempt are one av.setup pair ---------------------------------------------------
+const SETUP_RE = / av\.(setup|displayRect|displayMode|adaptive|bufferPlay|bufferResume|bufferTimeout)\b/;
+test('N3: a zap journals exactly two setup lines — av.setup and av.setup ok <names> — and no line per setting', () => {
+  const app = watching({ channels: 10 });
+  const last = lineSeq(lifeLines(app).slice(-1)[0]);
+  app.press(KEYS.RIGHT, 2000);
+  const lines = Array.from(lifeLines(app)).filter((l) => lineSeq(l) > last && SETUP_RE.test(l)).map(lineText);
+  assert.deepEqual(lines, ['av.setup', 'av.setup ok displayRect,displayMode,adaptive,bufferPlay,bufferResume']);
+});
+test('N3: while the journal is urgent, av.setup is in storage before the first setting call is made (a call that never returns leaves it last)', () => {
+  const app = watching();
+  const avplay = ev(app, 'webapis.avplay'), orig = avplay.setDisplayRect;
+  let lastAtCall = null;
+  avplay.setDisplayRect = function () {
+    const slots = Array.from(app.storage.raw.entries()).filter(([k]) => /^lifeLog\.\d+$/.test(k)).map(([, v]) => JSON.parse(v));
+    lastAtCall = slots.sort((a, b) => lineSeq(a) - lineSeq(b)).pop();
+    return orig.apply(this, arguments);
+  };
+  app.setHidden(true); app.advance(1000);
+  app.setHidden(false);                                       // the return rebuilds the stream: urgent (LIFE_SYNC_MS)
+  app.advance(10);
+  assert.ok(lastAtCall, 'setDisplayRect was not called');
+  assert.equal(lineText(lastAtCall), 'av.setup');
+});
+test('N3: setting calls that throw get their own error lines at once and are listed as <name>! in the exit line', () => {
+  const app = watching({ channels: 10, platformThrows: ['webapis.avplay.setStreamingProperty'] });
+  app.advance(20000);                                         // out of every window: routine lines wait in memory
+  const seq = app.seq();
+  app.press(KEYS.RIGHT, 0);
+  const inTask = lifeWritesBetween(app, seq, app.seq()).map((w) => w.value).join('\n');
+  assert.match(inTask, / av\.adaptive error SecurityError/);
+  app.advance(2000);
+  assert.ok(lifeLines(app).some((l) => / av\.setup ok displayRect,displayMode,adaptive!,bufferPlay,bufferResume$/.test(l)), 'no exit line with adaptive!');
+});
+
+// ---- N5: only a healthy channel change reuses the player — pins (MX1 !paused, MX2 !bufferingSince; !suspended kept) ----
+test('N5 (i): a zap while paused closes the player first', () => {
+  const app = watching({ channels: 10 });
+  app.press(KEYS.PLAY_PAUSE, 1000);
+  assert.equal(ev(app, 'Playback.mode()'), 'paused');
+  const seq = app.seq();
+  app.press(KEYS.RIGHT, 1500);
+  assert.deepEqual(teardownBeforeOpen(app, seq), ['stop', 'close', 'open']);
+});
+test('N5 (ii): a zap during a rebuffer after the first frame closes the player first', () => {
+  const app = watching({ channels: 10 });
+  app.av.emit('onbufferingstart');
+  const seq = app.seq();
+  app.press(KEYS.RIGHT, 1500);
+  assert.deepEqual(teardownBeforeOpen(app, seq), ['stop', 'close', 'open']);
+});
+test('N5 (iii): hidden while paused, back, then a zap closes the player first', () => {
+  const app = watching({ channels: 10 });
+  app.press(KEYS.PLAY_PAUSE, 1000);
+  app.setHidden(true); app.advance(1000);
+  app.setHidden(false); app.advance(3000);
+  assert.equal(ev(app, 'Playback.mode()'), 'paused');
+  const seq = app.seq();
+  app.press(KEYS.RIGHT, 1500);
+  assert.deepEqual(teardownBeforeOpen(app, seq), ['stop', 'close', 'open']);
+});

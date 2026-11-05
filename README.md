@@ -228,7 +228,7 @@ Whatever Samsung is on your wall, from a 2017 set to this year's model, it deser
 | 💾 **Remembers you** | Each provider keeps your last channel and group; the app opens where you left off. |
 | 🛡 **Survives bad networks** | Every stall, error or network drop reconnects with backoff (0.5 s up to 15 s). If the list server is down, the last list is shown and updates by itself. |
 | 🔑 **Your key stays with OTT Club** | Used exactly as typed and only ever sent to OTT Club (pinned by tests). |
-| 🔒 **Private** | No account, no ads, no analytics code. Three TV permissions only: internet, the remote's keys and opening the author's link (`config.xml`). The diagnostic counters and the life journal (what the app did last: opens, failures, keys, coming and going — redacted, no key, no password) are kept on the TV and never sent anywhere (`js/diag.js`, `js/lifelog.js`). |
+| 🔒 **Private** | No account, no ads, no analytics code. Three TV permissions only: internet, the remote's keys and opening the author's link (`config.xml`). The diagnostic counters and the life journal (what the app did last: opens, the TV player's calls — its setup as one pair of lines —, failures, keys, coming and going, a "now" refresh held after coming back — redacted, no key, no password) are kept on the TV and never sent anywhere (`js/diag.js`, `js/lifelog.js`). |
 | 👤 **About** | **ℹ About** shows the version, build, TV model, Tizen and engine version, player, provider, channel count and buffer settings; **Author** opens the author's LinkedIn profile in the TV's browser. |
 | 🏠 **Works with Home Dashboard** | Open [Home Dashboard](#-works-with-home-dashboard) on top and the channel's sound keeps playing under it; any other app still stops the player. |
 
@@ -378,7 +378,7 @@ Performance never costs freshness: no refresh is made rarer to look faster, and 
 
 | | |
 |---|---|
-| **Automated tests** | **561 tests, all passing**, in 55 files: 42 behaviour suites and 13 headless‑browser layout suites. The browser suites check wrapping, paging, scroll bars, logo boxes, mixed‑direction text, the Hebrew right‑to‑left layout and both menu views. |
+| **Automated tests** | **596 tests, all passing**, in 57 files: 44 behaviour suites and 13 headless‑browser layout suites. The browser suites check wrapping, paging, scroll bars, logo boxes, mixed‑direction text, the Hebrew right‑to‑left layout and both menu views. `tests/run.sh` runs under zsh even when started with `sh` or `bash`, and a run that reports no tests exits 2; an emptied test file still counts as one passing test in Node 22, so the by‑name diff of every run against the last one (VG‑4) is what catches it. |
 | **Mutation‑proven fixes** | For every fix, the guard is removed and the test must turn red, then the guard is restored and it must turn green again. |
 | **Independent reviews** | Every batch is reviewed by people who did not write it: a native code reviewer, Codex as an external reviewer, and a performance analyst (plus a designer for layout). The first full review raised 230 findings, and every one was given a status. |
 | **On the real TV** | Every release is measured on a 2017 UE50MU7000. The scenarios drive the app with remote key events through its inspector and read the results inside the TV page, on one clock. The raw logs are committed next to each scenario. |

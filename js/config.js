@@ -46,6 +46,7 @@ var CONFIG = {
   NOW_STALE_MS: 60000,         // an answer naming a show that ended this long before it arrived came from a stale cache
   NOW_LINGER_MS: 900000,       // the provider still names an ended programme up to this long (seen: 7+ min at 03:00)
   NOW_AFTER_LANDING_MS: 5000,  // no refresh this soon after a channel starts (the stream has the bandwidth)
+  NOW_AFTER_FRONT_MS: 15000,   // D9 (batch 5): an unseen re-read held on coming to the front waits this long, and for a first frame
   NOW_BUSY_RETRY_MS: 1000,     // a refresh held back (zap, list loading) is tried again after this
   OVERLAY_QUIET_MS: 1500,      // background data redraws an open menu only after this long without a key
   GUIDE_KEEP_AFTER_EVICT: 3,   // programmes kept (from now on) when a full guide leaves the cache

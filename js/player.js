@@ -5,7 +5,7 @@
 //            retryTarget() -> { url, archive } | null (archive: a fresh URL at the position shown),
 //            detourTarget() -> { url } | null (D6: another channel's live stream, played for a moment) }
 // Each attempt's steps are marked in Diag (S-0, review3): Diag.snapshot().attempts on the TV; the life journal (LifeLog, D7)
-// records every attempt, AVPlay call, first frame and failure.
+// records every attempt, AVPlay call (the setting calls of an attempt as one pair, N3), first frame and failure.
 var Player = (function () {
   var av = null, video = null, hooks = null;
   var gen = 0, url = null, archive = false;
@@ -89,8 +89,8 @@ var Player = (function () {
       // A recording that reaches its end is not an error: the app continues with what follows it.
       onstreamcompleted: function () { if (my === gen) ended(my); },
       onerror: function (e) { fail(my, String(e)); },
-      // HTTP error codes, bitrate and resolution changes: recorded only, for now (S-10).
-      onevent: function (type, data) { if (my === gen) Diag.avEvent(type, data); }
+      // HTTP error codes, bitrate and resolution changes: recorded only, for now (S-10); cleaned like failLog (batch 5, N2).
+      onevent: function (type, data) { if (my === gen) Diag.avEvent(type, LifeLog.clean(data === undefined ? '' : data)); }
     };
   }
 
@@ -104,14 +104,17 @@ var Player = (function () {
       Diag.mark('open');
       native('open', function () { av.open(src); });
       Diag.mark('setup');
-      setting(function () { av.setDisplayRect(0, 0, 1920, 1080); }, 'displayRect');
-      setting(function () { av.setDisplayMethod(AvTracks.displayMode()); }, 'displayMode');
+      var done = [];
+      LifeLog.add('av.setup');
+      setting(function () { av.setDisplayRect(0, 0, 1920, 1080); }, 'displayRect', done);
+      setting(function () { av.setDisplayMethod(AvTracks.displayMode()); }, 'displayMode', done);
       // The first rendition AVPlay picks (HIGHEST: the best the bandwidth allows; it drops to a lower one rather than
       // stall). An experiment flag (S-4): the TV A/B decides.
-      setting(function () { av.setStreamingProperty('ADAPTIVE_INFO', 'STARTBITRATE=' + CONFIG.START_BITRATE); }, 'adaptive');
-      setting(function () { av.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', CONFIG.BUFFER_PLAY_S); }, 'bufferPlay');
-      setting(function () { av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', CONFIG.BUFFER_RESUME_S); }, 'bufferResume');
-      if (CONFIG.AV_BUFFERING_TIMEOUT_S !== null) setting(function () { av.setTimeoutForBuffering(CONFIG.AV_BUFFERING_TIMEOUT_S); }, 'bufferTimeout');
+      setting(function () { av.setStreamingProperty('ADAPTIVE_INFO', 'STARTBITRATE=' + CONFIG.START_BITRATE); }, 'adaptive', done);
+      setting(function () { av.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', CONFIG.BUFFER_PLAY_S); }, 'bufferPlay', done);
+      setting(function () { av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', CONFIG.BUFFER_RESUME_S); }, 'bufferResume', done);
+      if (CONFIG.AV_BUFFERING_TIMEOUT_S !== null) setting(function () { av.setTimeoutForBuffering(CONFIG.AV_BUFFERING_TIMEOUT_S); }, 'bufferTimeout', done);
+      LifeLog.add('av.setup ok ' + done.join(','));
       native('setListener', function () { av.setListener(l); });
       Diag.mark('prepare');
       native('prepareAsync', function () {
@@ -134,16 +137,26 @@ var Player = (function () {
   // is the last line on record; one that threw is written at once, with every line waiting (fix batch 3, S2).
   function native(name, fn) {
     LifeLog.add('av.' + name);
-    try { fn(); } catch (e) { LifeLog.addNow('av.' + name + ' error ' + ((e && (e.name || e.message)) || e)); throw e; }
+    try { fn(); } catch (e) { refused(name, e); throw e; }
     LifeLog.add('av.' + name + ' ok');
   }
+  function refused(name, e) { LifeLog.addNow('av.' + name + ' error ' + ((e && (e.name || e.message)) || e)); }
   // AV_REUSE_NO_CLOSE (S-5, experiment): a stopped player in IDLE is opened again without close().
   function reusable() {
     if (!CONFIG.AV_REUSE_NO_CLOSE) return false;
     try { return av.getState() === 'IDLE'; } catch (e) { return false; }
   }
 
-  function setting(fn, name) { try { native(name, fn); } catch (e) { Diag.count('settingsRejected'); Diag.note('setting.' + name, (e && e.message) || String(e)); } }
+  // N3 (batch 5): the setting calls of one attempt are journaled as one pair — 'av.setup' before the first (a call the TV never
+  // returns from leaves it the last line on record), 'av.setup ok <names>' after the last — not a pair each. One that throws
+  // is written at once as 'av.<name> error …' (S2) and listed as '<name>!'. done: the names so far.
+  function setting(fn, name, done) {
+    try { fn(); done.push(name); } catch (e) {
+      done.push(name + '!');
+      refused(name, e);
+      Diag.count('settingsRejected'); Diag.note('setting.' + name, (e && e.message) || String(e));
+    }
+  }
 
   // ---- events shared by both backends ----
   function bufferingStarted() {
@@ -357,6 +370,7 @@ var Player = (function () {
     init: init, open: open, stop: stop, pause: pause, play: play, suspend: suspend, reconnect: reconnect, recovering: recovering,
     mediaTimeMs: mediaTimeMs, streamInfo: streamInfo, audioTracks: audioTracks, selectAudio: selectAudio,
     cycleDisplay: cycleDisplay, fullScreen: AvTracks.fullScreen, setFullScreen: setFullScreen,
-    fastSwitch: fastSwitch, setFastSwitch: setFastSwitch, unmute: function () { return !av && HtmlVideo.unmute(); }
+    fastSwitch: fastSwitch, setFastSwitch: setFastSwitch, unmute: function () { return !av && HtmlVideo.unmute(); },
+    attempt: function () { return gen; }   // D9: the current attempt's generation (a failure, reopen or stop moves it on)
   };
 }());

@@ -13,13 +13,14 @@ var Banner = (function () {
   // Playback is back after a stall: the line goes and the banner hides as usual.
   function resumed() { if (!state) return; state = ''; if (UI.bannerShown() && Overlay.isNone()) show(false); }
 
-  // fetchGuide: also make sure the full guide is loaded (INFO, the first frame); off while zapping.
+  // fetchGuide: also make sure the full guide is loaded (INFO, the first frame); off while zapping. The banner asked for
+  // that way also releases a "now" re-read held after coming to the front (D9).
   // Inside a landing's tech window every redraw keeps that line («…» or the value) and the banner stays
   // until the window ends; outside it the line is what the player knows about the current stream.
   function show(fetchGuide) {
     var c = Playback.current();
     if (!c) return;
-    if (fetchGuide) EPG.ensure(c.id, onGuide);
+    if (fetchGuide) { EPG.ensure(c.id, onGuide); NowLines.seen('(banner)'); }
     if (techSel !== Playback.selection()) techUntil = 0;   // a newer choice (zap, archive, pause) ends the window
     var t = Playback.position(), archive = Playback.mode() !== 'live', left = techUntil - Date.now();
     var m = model(c, { t: t, extra: archive ? I18n.t('b.archive', Util.hhmm(new Date(t))) : '', tech: state ? '' : left > 0 ? tech : Player.streamInfo(false) });

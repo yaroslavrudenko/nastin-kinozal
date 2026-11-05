@@ -10,6 +10,7 @@
     UI.show('prog', true);
     // The full guide arriving re-places a cursor the viewer has not moved yet (on air today, first row otherwise).
     EPG.ensure(c.id, function (err) { unavailable = !!err; if (!moved) cursor = -1; if (Overlay.mode() === 'panel') render(); });
+    NowLines.seen('(panel)');            // D9: a "now" re-read held after coming to the front goes at once
     render();
   }
   function close() { UI.show('prog', false); }
