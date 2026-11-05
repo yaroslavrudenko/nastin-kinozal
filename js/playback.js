@@ -11,23 +11,24 @@ var Playback = (function () {
   // cannot play was chosen; onBanner().
   function setHooks(h) { hooks = h; }
 
-  function live(c) {
+  // rebuild: the same stream opened again by the lifecycle, not a choice (the player keeps its failure episode, D6).
+  function live(c, rebuild) {
     selection++;
     ch = c; mode = 'live'; pipelineLost = false; audioIdx = 0;
-    open({ url: c.url, archive: false });
+    open({ url: c.url, archive: false, rebuild: !!rebuild });
   }
 
   // Plays channel c's archive from fromMs; near the live edge it plays live instead.
-  function archive(c, fromMs) {
+  function archive(c, fromMs, rebuild) {
     if (!Catchup.supported(c)) { UI.toast(I18n.t('m.noArchiveHere')); return; }
     var now = Date.now();
     fromMs = Math.max(Catchup.earliest(c, now), fromMs);
     // Close to the live edge the archive would only arrive in short pieces: switch to live instead.
-    if (fromMs >= now - CONFIG.LIVE_SNAP_MS) { ch = c; goLive(); return; }
+    if (fromMs >= now - CONFIG.LIVE_SNAP_MS) { ch = c; goLive(rebuild); return; }
     selection++;
     ch = c; mode = 'archive'; pipelineLost = false; audioIdx = 0;
     anchorWallMs = fromMs; anchorMediaMs = null;
-    open({ url: archiveUrl(c, fromMs), archive: true });
+    open({ url: archiveUrl(c, fromMs), archive: true, rebuild: !!rebuild });
   }
   // The playing channel's stream. A format the TV cannot play (dead at parse, review3 F-S12) is never opened, so it is
   // never retried: the stream on screen stops and the viewer is told once.
@@ -75,24 +76,35 @@ var Playback = (function () {
   // pipeline was released (Home), reopens the archive at the paused moment.
   function resume() {
     UI.toast('▶', 800);
-    if (pipelineLost || Date.now() - pausedAt >= CONFIG.LIVE_SNAP_MS) { archive(ch, frozenMs); return; }
+    if (pipelineLost || Date.now() - pausedAt >= CONFIG.LIVE_SNAP_MS) { archive(ch, frozenMs, true); return; }
     selection++;
     mode = 'archive';
     anchorWallMs = frozenMs; anchorMediaMs = Player.mediaTimeMs();
     Player.play();
   }
 
-  // The single home of "back to live": STOP, BACK in the archive, the slider at the live edge.
-  function goLive() {
-    if (mode !== 'live') live(ch); else if (hooks.onBanner) hooks.onBanner();
+  // The single home of "back to live": STOP, BACK in the archive, the slider at the live edge; rebuild: a resume that snapped to
+  // live keeps the failure episode (fix batch 3, S4).
+  function goLive(rebuild) {
+    if (mode !== 'live') live(ch, rebuild); else if (hooks.onBanner) hooks.onBanner();
     UI.toast(I18n.t('m.live'));
   }
 
   // The app went to the background (hidden = true) or came back.
+  // D3 (COMMON-DECISION player-behind 2026-11-05): a stream that played behind the dashboard is never kept in front — it is
+  // released and opened again at the moment on screen (close → open), whether or not 'stop-behind' arrived; hiddenMs stays
+  // null, so the next hide suspends it again.
   function onVisibility(hidden) {
     if (hidden) { suspendHidden(); return; }
+    var wasBehind = behind;
     behind = false;                      // in front again: playing as usual
-    if (hiddenMs === null) return;       // Tizen reports "visible" right after launch too; or it played behind
+    if (wasBehind && hiddenMs === null && (mode === 'live' || mode === 'archive')) {
+      var now = position();
+      Player.suspend();
+      reopen(now);
+      return;
+    }
+    if (hiddenMs === null) return;       // Tizen reports "visible" right after launch too
     var at = hiddenMs;
     hiddenMs = null;
     if (mode === 'paused') return;       // stays paused; resuming reopens at the paused moment
@@ -107,7 +119,7 @@ var Playback = (function () {
     Player.suspend();
   }
   // The same stream again from the moment it was left: live, or the archive at that moment.
-  function reopen(at) { if (mode === 'live') live(ch); else archive(ch, at); }
+  function reopen(at) { if (mode === 'live') live(ch, true); else archive(ch, at, true); }
 
   // Our Home Dashboard is in front (RemoteControl 'play-behind', owner 2026-10-30: «чтобы дэшборд был поверх и не перебивал
   // музыку»): a stream suspended by it plays on behind it. Paused or nothing playing: nothing. Returns whether it resumed.
@@ -157,12 +169,27 @@ var Playback = (function () {
     } catch (e) { Diag.note('network', (e && (e.code || e.message)) || String(e)); }
   }
 
+  // D6: the channel a detour plays for a moment — the next eligible channel of the whole list whose stream is another URL
+  // (a channel the TV cannot play is skipped); null in an archive, or when there is none.
+  function detourTarget() {
+    if (mode !== 'live' || !ch) return null;
+    var key = ch.key;
+    for (var i = 0, n = Channels.count(); i < n; i++) {
+      key = Channels.nextVisible(key, 1, Channels.allIdx());
+      var y = key ? Channels.get(key) : null;
+      if (!y || y.key === ch.key) return null;
+      if (!y.dead && y.url && y.url !== ch.url) return { url: y.url };
+    }
+    return null;
+  }
+
   // A refreshed list holds the playing channel again: its fresher record replaces the old one.
   function adopt(c) { if (ch && c && c.key === ch.key) ch = c; }
 
   return {
     setHooks: setHooks, live: live, archive: archive, position: position, retryTarget: retryTarget, togglePause: togglePause,
     goLive: goLive, onVisibility: onVisibility, playBehind: playBehind, stopBehind: stopBehind, onFirstFrame: onFirstFrame, watchNetwork: watchNetwork, onEnded: onEnded, adopt: adopt, cycleAudio: cycleAudio,
-    current: function () { return ch; }, mode: function () { return mode; }, selection: function () { return selection; }
+    detourTarget: detourTarget,
+    current: function () { return ch; }, mode: function () { return mode; }, selection: function () { return selection; }, behind: function () { return behind; }
   };
 }());

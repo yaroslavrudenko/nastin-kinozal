@@ -17,15 +17,19 @@ const ev = (app, js) => vm.runInContext(js, app.ctx);
 const send = (app, cmd) => app.message(PORT, [{ key: 'cmd', value: cmd }]);
 const opensAfter = (app, seq) => app.av.calledAfter('open', seq).length;
 function watching(opts) { const app = f.untilPlaying(f.ottApp(opts)); app.advance(10000); return app; }
-// Another app comes to the front: the player is suspended, as today.
+// Another app comes to the front: the player is released (D1, COMMON-DECISION player-behind 2026-11-05: stop + close, never
+// AVPlay's suspend()).
 function hide(app) { app.setHidden(true); app.advance(1000); }
+const released = (app, seq) => app.av.calledAfter('close', seq).length;
 function noErrors(app) { assert.deepEqual(app.errors.map((e) => e.label + ': ' + e.error), []); }
 
 test('play-behind: a live channel suspended by the dashboard plays on behind it, the same channel', () => {
   const app = watching();
   const liveUrl = f.lastOpenUrl(app);
+  const hideSeq = app.seq();
   hide(app);
-  assert.equal(app.av.suspended, true, 'the player was not suspended in the background');
+  assert.equal(released(app, hideSeq), 1, 'the player was not released in the background');
+  assert.equal(app.av.calledAfter('suspend', hideSeq).length, 0, 'AVPlay suspend() was called (D1)');
   const seq = app.seq();
   send(app, 'play-behind');
   app.advance(3000);
@@ -104,7 +108,9 @@ test('play-behind: a second message while already playing behind does nothing (t
   assert.equal(opensAfter(app, seq), 0);
 });
 
-test('play-behind: the player brought back to the front keeps playing — no second reopen', () => {
+// D3 (COMMON-DECISION player-behind 2026-11-05) replaces «keeps playing — no second reopen»: the stream born behind is rebuilt
+// once in front.
+test('play-behind: the player brought back to the front rebuilds the stream once; a late stop-behind stops nothing', () => {
   const app = watching();
   hide(app);
   send(app, 'play-behind');
@@ -112,11 +118,12 @@ test('play-behind: the player brought back to the front keeps playing — no sec
   const seq = app.seq();
   app.setHidden(false);
   app.advance(3000);
-  assert.equal(opensAfter(app, seq), 0, 'the stream already playing was reopened on return');
+  assert.equal(opensAfter(app, seq), 1, 'the stream born behind was not rebuilt once on return');
   assert.equal(app.av.state, 'PLAYING');
+  const lateSeq = app.seq();
   send(app, 'stop-behind');                             // the dashboard's late "gone" must not stop the player in front
   app.advance(1000);
-  assert.equal(app.av.calledAfter('suspend', seq).length, 0, 'the player in front was suspended by a late stop-behind');
+  assert.equal(released(app, lateSeq), 0, 'the player in front was released by a late stop-behind');
 });
 
 test('stop-behind: the dashboard going away stops the player; back in front, it resumes as usual', () => {
@@ -127,7 +134,7 @@ test('stop-behind: the dashboard going away stops the player; back in front, it 
   const stopSeq = app.seq();
   send(app, 'stop-behind');
   app.advance(1000);
-  assert.equal(app.av.calledAfter('suspend', stopSeq).length, 1, 'the player was not suspended by stop-behind');
+  assert.equal(released(app, stopSeq), 1, 'the player was not released by stop-behind');
   assert.equal(ev(app, 'Diag.snapshot().notes.control'), 'stop-behind done');
   app.advance(30000);
   assert.equal(opensAfter(app, stopSeq), 0, 'something reopened the stream after stop-behind');
@@ -143,7 +150,7 @@ test('stop-behind: not playing behind (in front, or suspended by another app) �
   let seq = app.seq();
   send(app, 'stop-behind');
   app.advance(1000);
-  assert.equal(app.av.calledAfter('suspend', seq).length, 0, 'the player in front was suspended');
+  assert.equal(released(app, seq), 0, 'the player in front was released');
   assert.equal(ev(app, 'Diag.snapshot().notes.control'), 'stop-behind ignored');
   hide(app);
   seq = app.seq();

@@ -33,6 +33,12 @@ var Util = (function () {
     return false;
   }
 
+  // The same without a word in Diag: false when the storage refused it; the caller counts the refusal itself (LifeLog,
+  // whose one-key-per-line ring would otherwise leave a note per slot).
+  function store(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
+  }
+
   function remove(key) {
     try { localStorage.removeItem(key); } catch (e) { if (window.Diag) Diag.note('remove.' + key, (e && e.name) || 'error'); }
   }
@@ -108,6 +114,6 @@ var Util = (function () {
 
   return {
     MIN_MS: MIN_MS, DAY_MS: DAY_MS,
-    load: load, save: save, saveJson: saveJson, remove: remove, clamp: clamp, pad2: pad2, hhmm: hhmm, span: span, $: $, show: show, cls: cls, isHidden: isHidden, hideBrokenImage: hideBrokenImage, esc: esc, dict: dict,
+    load: load, save: save, saveJson: saveJson, store: store, remove: remove, clamp: clamp, pad2: pad2, hhmm: hhmm, span: span, $: $, show: show, cls: cls, isHidden: isHidden, hideBrokenImage: hideBrokenImage, esc: esc, dict: dict,
     idle: idle, afterPaint: afterPaint, dayStart: dayStart, addDays: addDays, backoff: backoff, openUrl: openUrl };
 }());

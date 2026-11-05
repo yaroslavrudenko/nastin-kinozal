@@ -124,7 +124,7 @@ var OttClub = (function () {
   }
 
   return {
-    enabled: enabled, extractKey: extractKey, saveKey: saveKey,
+    enabled: enabled, key: key, extractKey: extractKey, saveKey: saveKey,
     sourceUrl: sourceUrl, freshUrl: freshUrl, streamUrl: streamUrl, parse: parse, seedsOf: seedsOf, guide: guide
   };
 }());

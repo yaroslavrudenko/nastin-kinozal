@@ -9,8 +9,9 @@ var RemoteControl = (function () {
     var mp = window.tizen && tizen.messageport;
     if (!mp || !mp.requestLocalMessagePort) return;
     mp.requestLocalMessagePort(PORT).addMessagePortListener(function (data) {
-      var cmd = commandOf(data), fn = handlers.hasOwnProperty(cmd) ? handlers[cmd] : null;
-      Diag.note('control', (cmd || '?') + (fn ? (fn() ? ' done' : ' ignored') : ' unknown'));
+      var cmd = commandOf(data), fn = handlers.hasOwnProperty(cmd) ? handlers[cmd] : null, result = (cmd || '?') + (fn ? (fn() ? ' done' : ' ignored') : ' unknown');
+      Diag.note('control', result);
+      LifeLog.pinNow(fn ? 'control.' + cmd : 'control', 'control ' + result);   // D7: written at once
     });
   }
 

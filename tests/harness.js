@@ -204,15 +204,18 @@ function createApp(opts) {
 
   const clock = createClock(o.now, o.autoTickMs);
   const events = [];             // ordered log of everything observable: xhr, av, storage, keys
-  let seq = 0;
-  function log(type, data) { const e = Object.assign({ seq: ++seq, at: clock.now, type }, data); events.push(e); return e; }
+  let seq = 0, taskCount = 0, taskNo = 0;   // taskNo: the macrotask an event happened in (0: outside every task)
+  function log(type, data) { const e = Object.assign({ seq: ++seq, at: clock.now, task: taskNo, type }, data); events.push(e); return e; }
 
   const errors = [];
   const tasks = [];
   function runTask(label, fn) {
+    const outer = taskNo;
+    taskNo = ++taskCount;
     const t0 = performance.now();
     try { fn(); } catch (e) { errors.push({ label, error: e }); }
     const ms = performance.now() - t0;
+    taskNo = outer;
     tasks.push({ label, ms, at: clock.now });
     return ms;
   }
@@ -396,7 +399,8 @@ function createApp(opts) {
     listener: null,
     currentTime: 0,
     prepareMs: o.avPrepareMs,
-    prepareFails: false,
+    prepareFails: false,         // true, or (url) -> true: that stream's prepareAsync fails (CONNECTION_FAILED)
+    prepareHangs: null,          // (url) -> true: that stream's prepareAsync never answers
     suspendState: o.avSuspendState,
     pauseState: o.avPauseState,
     paused: false,
@@ -418,9 +422,10 @@ function createApp(opts) {
     prepareAsync(ok, err) {
       avCall('prepareAsync', []);
       const openedUrl = av.url;
+      if (av.prepareHangs && av.prepareHangs(openedUrl)) return;
       addTimer(function () {
         if (av.url !== openedUrl) return;
-        if (av.prepareFails) { if (err) err('PLAYER_ERROR_CONNECTION_FAILED'); return; }
+        if (av.prepareFails === true || (typeof av.prepareFails === 'function' && av.prepareFails(openedUrl))) { if (err) err('PLAYER_ERROR_CONNECTION_FAILED'); return; }
         av.state = 'READY';
         if (ok) ok();
       }, av.prepareMs, false, 'av-prepare');
@@ -567,10 +572,11 @@ function createApp(opts) {
     seq: () => seq,
     advance, advanceUntil, runTask, log,
     boot() { runTask('onload', function () { sandbox.onload(); }); advance(0); return app; },
-    press(keyCode, gapMs) {
+    // extra: more fields of the key event, e.g. { repeat: true } (the key held down).
+    press(keyCode, gapMs, extra) {
       log('key', { keyCode });
       runTask('key ' + keyCode, function () {
-        dispatchDoc('keydown', { keyCode, key: '', preventDefault() {}, stopPropagation() {} });
+        dispatchDoc('keydown', Object.assign({ keyCode, key: '', preventDefault() {}, stopPropagation() {} }, extra || {}));
       });
       advance(gapMs == null ? 0 : gapMs);
     },
@@ -607,6 +613,11 @@ function createApp(opts) {
     message(port, data) {
       log('message', { port });
       runTask('message ' + port, function () { (ports[port] || []).forEach((fn) => fn(data, null)); });
+    },
+    // A window event the page receives (e.g. 'pagehide', 'unload'), in its own task.
+    windowEvent(type) {
+      log('window-event', { type });
+      runTask('window ' + type, function () { (sandbox._winListeners[type] || []).slice().forEach((fn) => fn({ type })); });
     },
     rows(containerId) {
       const el = document.getElementById(containerId);

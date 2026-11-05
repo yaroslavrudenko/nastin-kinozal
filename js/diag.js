@@ -7,13 +7,33 @@ var Diag = (function () {
   var attempts = [], lastKeyAt = 0;   // S-0: the timeline of the last DIAG_ATTEMPTS playback attempts (memory only)
   var flushTimer = null;
 
-  // scheme://host/path only: no user:password, no query; credentials inside the path are masked:
-  // the OTT key in /stream/<key>/ and the user/password of /live|movie|series|timeshift/<user>/<pass>/.
+  // scheme://host/path only: no user:password, no query; the path masked as in the journal (uri()).
   function redact(url) {
-    var m = /^([a-z][a-z0-9+.-]*:\/\/)(?:[^@\/?#]*@)?([^?#]*)/i.exec(String(url || ''));
-    if (!m) return '';
-    return (m[1] + m[2]).replace(/\/stream\/[^\/]+\//, '/stream/<key>/')
-      .replace(/\/(live|movie|series|timeshift)\/[^\/]+\/[^\/]+\//, '/$1/<user>/<pass>/');
+    var s = String(url || '');
+    return /^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? uri(s.split(/[?#]/)[0]) : '';
+  }
+  // The known places of credentials in a path: the OTT key, an Xtream user and password; and the Xtream short form
+  // scheme://host/<user>/<pass>/<id> (fix batch 3, S1), masked by uri() like every unknown segment; learned only when
+  // neither segment is a known word (fix batch 4, T1: …/hls/live/<id>.m3u8 must not teach "live").
+  var KEY_PATH = /\/stream\/([^\/?#]+)\//, USER_PATH = /\/(live|movie|series|timeshift)\/([^\/?#]+)\/([^\/?#]+)\//;
+  var SHORT_PATH = /^[a-z][a-z0-9+.-]*:\/\/[^\/?#]*\/([^\/?#]+)\/([^\/?#]+)\/[^\/?#]+$/i;
+  var SAFE_SEGMENT = /^(|\.\.?|stream|live|movie|series|timeshift|…|<(key|user|pass|cred)>)$/;
+  function maskPath(p) { return p.replace(KEY_PATH, '/stream/<key>/').replace(USER_PATH, '/$1/<user>/<pass>/'); }
+  // The credential values of a URI (no query), [] when none.
+  function pathCredentials(p) {
+    var k = KEY_PATH.exec(p), u = USER_PATH.exec(p), s = !k && !u ? SHORT_PATH.exec(p) : null;
+    var shortForm = s && !SAFE_SEGMENT.test(s[1]) && !SAFE_SEGMENT.test(s[2]);
+    return (k ? [k[1]] : []).concat(u ? [u[2], u[3]] : []).concat(shortForm ? [s[1], s[2]] : []);
+  }
+  // A URI as every stored record shows it (the life journal, failLog, the AVPlay event notes): no user info, no query or
+  // fragment (only '?…' / '#…' says there was one), every path segment but the last masked ('…') unless it is a known word.
+  function uri(t) {
+    var q = t.search(/[?#]/), s = q < 0 ? t : t.substring(0, q), head = '';
+    var m = /^((?:[a-z][a-z0-9+.-]*:)?\/\/)([^\/]*)/i.exec(s);
+    if (m) { head = m[1] + m[2].replace(/^[^@]*@/, ''); s = s.substring(m[0].length); } else s = s.replace(/^[^\/]*@/, '');
+    var parts = maskPath(s).split('/');
+    for (var i = 0; i < parts.length - 1; i++) if (!SAFE_SEGMENT.test(parts[i])) parts[i] = '…';
+    return head + parts.join('/') + (q < 0 ? '' : t.charAt(q) + '…');
   }
 
   // The archive moment a URL asks for (OTT Club archive=, shift utc=), or '': the query is dropped by
@@ -80,5 +100,5 @@ var Diag = (function () {
   function snapshot() { return { counters: counters, notes: notes, recent: recent.slice(), attempts: attempts.slice() }; }
 
   // snapshot() is read from the Tizen inspector console (TV checks TV-4 and TV-9).
-  return { fail: fail, count: count, note: note, snapshot: snapshot, key: key, attempt: attempt, mark: mark, avEvent: avEvent };
+  return { fail: fail, count: count, note: note, snapshot: snapshot, key: key, attempt: attempt, mark: mark, avEvent: avEvent, redact: redact, uri: uri, pathCredentials: pathCredentials };
 }());

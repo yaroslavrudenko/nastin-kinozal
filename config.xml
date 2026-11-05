@@ -16,7 +16,9 @@
     <!-- Plays on behind our Home Dashboard (js/remote-control.js 'play-behind'); every other app still stops it (js/playback.js).
          background-support="enable" (tizen:setting below) keeps the hidden app's scripts running so the dashboard's message arrives;
          background-category "media" (Tizen web config, since 2.4) declares the reason: playing audio/video in the background.
-         Unverified on the UE50MU7000 (Tizen 3.0) until the owner's TV run. -->
+         Checked by the owner on the UE50MU7000 (Tizen 3.0) on 2026-10-30. Hours-long sessions behind the dashboard are under
+         investigation (COMMON-DECISION player-behind 2026-11-05, Stage 2: if the app keeps vanishing after them, these two
+         settings and playBehind() are withdrawn on this TV). -->
     <tizen:background-category value="media"/>
     <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="enable"
                    encryption="disable" install-location="auto" hwkey-event="enable"/>

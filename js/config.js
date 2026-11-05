@@ -132,5 +132,20 @@ var CONFIG = {
   SEARCH_LIMIT: 60,
   DIAG_FLUSH_MS: 30000,
   DIAG_LOG_LINES: 40,
-  DIAG_ATTEMPTS: 20            // playback attempts whose timeline Diag.snapshot() keeps (S-0; memory only, never stored)
+  DIAG_ATTEMPTS: 20,           // playback attempts whose timeline Diag.snapshot() keeps (S-0; memory only, never stored)
+
+  // After hours behind the dashboard (COMMON-DECISION player-behind, 2026-11-05)
+  BACK_GUARD_MS: 1500,         // D8: Back this soon after the player comes to the front never counts towards the double-Back exit
+  LIVE_FIRST_FRAME_MS: 30000,  // D6: a live attempt with no first frame by then fails, whatever its buffering progress says
+  DETOUR_AFTER: 3,             // D6: live failures of a channel in a row before one other channel is played for a moment
+  DETOUR_EVERY: 20,            // D6: further failures before the next such detour
+  DETOUR_MAX_MS: 15000,        // D6: the other channel is left at the latest this long after it was opened
+  LIFE_LINES: 200,             // D7: lines in the life journal's ring (localStorage lifeLog.<n>)
+  LIFE_PREV_LINES: 60,         // D7: the previous launch's last lines kept at boot (lifeLogPrev)
+  LIFE_ALIVE_MS: 5000,         // D7: the alive record (lifeAlive), front or behind; routine lines waiting in memory are written with it
+  LIFE_FLUSH_CHUNK: 20,        // D7 (fix batch 3, S3): journal writes in one task of the alive tick's flush; the rest in the next tasks
+  LIFE_SYNC_MS: 10000,         // D7 (fix batch 2, R2): every line is written at once this long after the player comes to the front
+  LIFE_TEXT_MAX: 200,          // D7: a line's text (cleaned first), at most this many characters
+  PROBE_TIMEOUT_MS: 8000,      // D7: the one GET of a failing live playlist
+  PROBE_MAX_BYTES: 65536
 };

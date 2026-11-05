@@ -75,6 +75,7 @@ test('logos (P-2): a single step after a pause shows the new page\'s logos at on
 
 test('menu (P-4): a first channel that does not play — the menu is laid out ahead from its 4th attempt («no signal»), never during the three silent retries (review 4, P4-2)', () => {
   const app = f.ottApp({ channels: 30 });
+  app.av.prepareFails = true;                                   // nothing plays (the detour's channel neither, D6)
   const openCalls = () => app.av.calls.filter((c) => c.fn === 'open').length;
   app.advanceUntil(() => openCalls() > 0, 5000, 10);
   app.advance(150);
@@ -83,7 +84,9 @@ test('menu (P-4): a first channel that does not play — the menu is laid out ah
     app.av.emit('onerror', 'PLAYER_ERROR_CONNECTION_FAILED');
     app.advance(50);
     assert.equal(rows(app).length, 0, 'the menu was laid out at the silent retry ' + attempt + ' (logos and layout beside the stream)');
-    app.advanceUntil(() => openCalls() > n, 20000, 10);       // the player opens the stream again
+    // the player opens the stream again; after the third failure the detour's channel first, then the stream (D6,
+    // COMMON-DECISION player-behind 2026-11-05)
+    app.advanceUntil(() => openCalls() > n + (attempt === 3 ? 1 : 0), 20000, 10);
     app.advance(150);
   }
   app.av.emit('onerror', 'PLAYER_ERROR_CONNECTION_FAILED');

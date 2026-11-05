@@ -106,7 +106,7 @@ Whatever Samsung is on your wall, from a 2017 set to this year's model, it deser
 | | |
 |---|---|
 | 🎞 **Hardware video playback** | Every stream is decoded by the TV's own hardware player, **Samsung AVPlay**, not by JavaScript: full HD (1920×1080) on a 2017 TV without straining its processor. The picture is laid exactly over the whole screen. A plain HTML `<video>` is used only off the TV, for desktop checks. |
-| 🩺 **Playback that heals itself** | A watchdog checks the stream every second. A picture that stops moving for 8 s, or buffering that makes no progress for 15 s, reconnects by itself with backoff (0.5 s up to 15 s), with a 10‑second buffer to resume from. If another app borrowed the TV's player, ours is reopened; on TVs that report network changes, playback also reconnects the moment the network comes back. You never have to restart the app. |
+| 🩺 **Playback that heals itself** | A watchdog checks the stream every second. A picture that stops moving for 8 s, or buffering that makes no progress for 15 s, reconnects by itself with backoff (0.5 s up to 15 s), with a 10‑second buffer to resume from. If another app borrowed the TV's player, ours is reopened; on TVs that report network changes, playback also reconnects the moment the network comes back. A live channel that shows no picture within 30 s reconnects even while its buffering creeps forward. After three failures in a row the player plays the next channel for a moment and returns (a zap away and back clears what retrying the same stream does not); again only after 20 more failures. Every reconnect opens the TV's player afresh. You never have to restart the app. |
 | ⚡ **Fast** | Measured on a 2017 TV: a channel switch takes **about 1.0 s** from key to picture; menu keys answer in **37–49 ms**; channel logos never pop in while you scroll; scrolling is smoother than in 1.8.4 (long frames when holding ▼: **15 → 2**). [The numbers ↓](#-performance-what-improved-and-why) |
 | 🧊 **The screen never freezes** | Lists are virtualised, so a 1000‑channel playlist moves like a 10‑channel one. Playlists and programme guides are parsed in slices of at most 8 ms, and no logo download ever starts inside a key press, so the remote keeps answering. |
 | 🎬 **Calm picture, no spinner nagging** | The big buffering spinner appears only when a channel is really slow (over ~1.6 s): **0–1 times in 16 channel changes** on the TV. Quality adapts to your connection: it starts at the best the bandwidth allows and steps down rather than stalling. |
@@ -161,7 +161,7 @@ Whatever Samsung is on your wall, from a 2017 set to this year's model, it deser
 
 ### 1.9.4 · update of 2026‑10‑30
 
-- **Plays on behind Home Dashboard.** When the companion app [Home Dashboard](https://github.com/yaroslavrudenko/home-dashboard-tv) is opened on top of the player, the channel's sound keeps playing under it. Any other app (YouTube and the rest) still stops the player, as before; back in front, the player carries on as usual. Checked by the owner on his UE50MU7000 on 2026‑10‑30: the channel played on in the background under the dashboard.
+- **Plays on behind Home Dashboard.** When the companion app [Home Dashboard](https://github.com/yaroslavrudenko/home-dashboard-tv) is opened on top of the player, the channel's sound keeps playing under it. Any other app (YouTube and the rest) still stops the player, as before; back in front, the player opens the channel afresh at the moment on screen (a stream started in the background is never kept in front). Checked by the owner on his UE50MU7000 on 2026‑10‑30: the channel played on in the background under the dashboard.
 - **The app icon is the eye alone**: the pen‑drawn eye with its gold iris, now without any lettering.
 
 ### 1.9.4
@@ -228,13 +228,13 @@ Whatever Samsung is on your wall, from a 2017 set to this year's model, it deser
 | 💾 **Remembers you** | Each provider keeps your last channel and group; the app opens where you left off. |
 | 🛡 **Survives bad networks** | Every stall, error or network drop reconnects with backoff (0.5 s up to 15 s). If the list server is down, the last list is shown and updates by itself. |
 | 🔑 **Your key stays with OTT Club** | Used exactly as typed and only ever sent to OTT Club (pinned by tests). |
-| 🔒 **Private** | No account, no ads, no analytics code. Three TV permissions only: internet, the remote's keys and opening the author's link (`config.xml`). The diagnostic counters are kept on the TV and never sent anywhere (`js/diag.js`). |
+| 🔒 **Private** | No account, no ads, no analytics code. Three TV permissions only: internet, the remote's keys and opening the author's link (`config.xml`). The diagnostic counters and the life journal (what the app did last: opens, failures, keys, coming and going — redacted, no key, no password) are kept on the TV and never sent anywhere (`js/diag.js`, `js/lifelog.js`). |
 | 👤 **About** | **ℹ About** shows the version, build, TV model, Tizen and engine version, player, provider, channel count and buffer settings; **Author** opens the author's LinkedIn profile in the TV's browser. |
 | 🏠 **Works with Home Dashboard** | Open [Home Dashboard](#-works-with-home-dashboard) on top and the channel's sound keeps playing under it; any other app still stops the player. |
 
 ## 🏠 Works with Home Dashboard
 
-[Home Dashboard](https://github.com/yaroslavrudenko/home-dashboard-tv) is the companion app for the same TV. When it comes to the front, it tells the player to keep the channel's sound playing behind it; when it goes away, the player is suspended again exactly as by any other app, and back in front it carries on as usual. Any other app (YouTube and the rest) still stops the player. Paused or with nothing playing, nothing starts.
+[Home Dashboard](https://github.com/yaroslavrudenko/home-dashboard-tv) is the companion app for the same TV. When it comes to the front, it tells the player to keep the channel's sound playing behind it; when it goes away (or Back closes it), the player is stopped again exactly as by any other app. Back in front, the player opens the channel afresh at the moment on screen — whether or not the dashboard said it went away — so a stream started in the background is never kept in front. Any other app (YouTube and the rest) still stops the player. Paused or with nothing playing, nothing starts.
 
 How it works: the dashboard sends `play-behind` and `stop-behind` over the Tizen message port `kinozal.control` ([`js/remote-control.js`](js/remote-control.js), handled in [`js/playback.js`](js/playback.js)). `config.xml` enables `background-support` with the background category `media`, so the hidden player keeps running and receives the message. Checked by the owner on his UE50MU7000 on 2026‑10‑30.
 
@@ -378,7 +378,7 @@ Performance never costs freshness: no refresh is made rarer to look faster, and 
 
 | | |
 |---|---|
-| **Automated tests** | **492 tests, all passing**, in 53 files: 40 behaviour suites and 13 headless‑browser layout suites. The browser suites check wrapping, paging, scroll bars, logo boxes, mixed‑direction text, the Hebrew right‑to‑left layout and both menu views. |
+| **Automated tests** | **561 tests, all passing**, in 55 files: 42 behaviour suites and 13 headless‑browser layout suites. The browser suites check wrapping, paging, scroll bars, logo boxes, mixed‑direction text, the Hebrew right‑to‑left layout and both menu views. |
 | **Mutation‑proven fixes** | For every fix, the guard is removed and the test must turn red, then the guard is restored and it must turn green again. |
 | **Independent reviews** | Every batch is reviewed by people who did not write it: a native code reviewer, Codex as an external reviewer, and a performance analyst (plus a designer for layout). The first full review raised 230 findings, and every one was given a status. |
 | **On the real TV** | Every release is measured on a 2017 UE50MU7000. The scenarios drive the app with remote key events through its inspector and read the results inside the TV page, on one clock. The raw logs are committed next to each scenario. |
